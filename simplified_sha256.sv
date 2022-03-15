@@ -181,15 +181,25 @@ begin
 	// Fetch message in 512-bit block size
 	// For each of 512-bit block initiate hash value computation
        
-
-
-
-   
-
-
-
-
-    
+		if(j < 2) begin
+			//create message blocks
+			
+			//copy h0-h7 to a-h
+			a <= h0;
+			b <= h1;
+			c <= h2;
+			d <= h3;
+			e <= h4;
+			f <= h5;
+			g <= h6;
+			h <= h7;
+			
+			state <= COMPUTE;
+		end
+		else begin
+		
+			state <= WRITE;
+		end
 
     end
 
@@ -199,30 +209,44 @@ begin
     // move to WRITE stage
     COMPUTE: begin
 	 // 64 processing rounds steps for 512-bit block 
-        if (i <= 64) begin
-
-				for (t = 0; t < 64; t++) begin
+			//message expansion
+			for (t = 0; t < 64; t++) begin
 					if (t < 16) begin
+					
 						w[t] = //dpsram_tb[t];
+						
 					end else begin
+					
 						s0 = rightrotate(w[t-15], 7) ^ rightrotate(w[t-15], 18) ^ (w[t-15] >> 3);
 						s1 = rightrotate(w[t-2], 17) ^ rightrotate(w[t-2], 19) ^ (w[t-2] >> 10);
 						w[t] = w[t-16] + s0 + w[t-7] + s1;
+						
 					end
-				end
-
-
-
-
-
-
-
-
-
-
-
-
-        end
+			end
+			
+			//SHA256 operation 64 times
+			for (i = 0; i < 64; i++) begin
+				
+				{a, b, c, d, e, f, g, h} = sha256_op(a, b, c, d, e, f, g, h, w[t], t);
+			
+			end
+			
+			//add a-h to hash values
+			h0 <= h0 + a;
+			h1 <= h1 + b;
+			h2 <= h2 + c;
+			h3 <= h3 + d;
+			h4 <= h4 + e;
+			h5 <= h5 + f;
+			h6 <= h6 + g;
+			h7 <= h7 + h;
+			
+			//increment block counter
+			j <= j + 1;
+			
+			//goes back to block state after compression
+			state <= BLOCK;
+			
     end
 
     // h0 to h7 each are 32 bit hashes, which makes up total 256 bit value
