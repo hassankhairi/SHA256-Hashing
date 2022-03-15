@@ -49,6 +49,7 @@ assign tstep = (i - 1);
 function logic [15:0] determine_num_blocks(input logic [31:0] size);
 
   // Student to add function implementation
+  
 
 endfunction
 
@@ -61,11 +62,11 @@ begin
     S1 = rightrotate(e, 6) ^ rightrotate(e, 11) ^ rightrotate(e, 25);
     // Student to add remaning code below
     // Refer to SHA256 discussion slides to get logic for this function
-    ch = 
-    t1 = 
-    S0 = 
-    maj = 
-    t2 = 
+    ch = (e & f) ^ ((~e) & g);
+    t1 = h + S1 + ch + k[t] + w;
+    S0 = rightrotate(a, 2) ^ rightrotate(a, 13) ^ rightrotate(a, 22);
+    maj = (a & b) ^ (a & c) ^ (b & c);
+    t2 = S0 + maj;
     sha256_op = {t1 + t2, a, b, c, d + t1, e, f, g};
 end
 endfunction
@@ -109,12 +110,69 @@ begin
     IDLE: begin 
        if(start) begin
        // Student to add rest of the code  
-
-
-
+			
+			h0 <= 32'h6a09e667;
+			h1 <= 32'hbb67ae85;
+			h2 <= 32'h3c6ef372;
+			h3 <= 32'ha54ff53a;
+			h4 <= 32'h510e527f;
+			h5 <= 32'h9b05688c;
+			h6 <= 32'h1f83d9ab;
+			h7 <= 32'h5be0cd19;
+			
+			a <= 0;
+			b <= 0;
+			c <= 0;
+			d <= 0;
+			e <= 0;
+			f <= 0;
+			g <= 0;
+			h <= 0;
+			
+			// initialize pointer to access memory location
+         offset <= 0;
+			
+			// by default set write enable to '0' (i.e. memory read mode)
+         cur_we <= 0;
+			mem_we <= 0;
+			
+			done <= 0;
+			
+			// get starting address of message 
+      	cur_addr <= message_addr;
+			
+			// initialize write data to memory to '0'
+         cur_write_data <= 32'h0
+			
+			state <= READ;
 
        end
     end
+	 READ: begin
+			if(offset < 20) begin
+				// Read message word from testbench memory and store it in message array in chunks of 32 bits
+
+       		// mem_read_data will have 32 bits of message word which is coming from dpsram memory in testbench
+
+       		// using "offset" index variable, store 32-bit message word in each "message" array location.
+
+        		message[offset] <= mem_read_data;
+
+        		// Increment memory address to fetch next block 
+        		offset <= offset + 1;    
+
+        		cur_we <= 1'b0; // continue to set mem_we = 0 to read memory until all 20 words are read
+
+        		state <= READ;
+				
+			end
+			else begin
+				
+				state <= BLOCK;
+				
+			end
+	
+	 end
 
     // SHA-256 FSM 
     // Get a BLOCK from the memory, COMPUTE Hash output using SHA256 function    
@@ -140,10 +198,18 @@ begin
     // there are still number of message blocks available in memory otherwise
     // move to WRITE stage
     COMPUTE: begin
-	// 64 processing rounds steps for 512-bit block 
+	 // 64 processing rounds steps for 512-bit block 
         if (i <= 64) begin
 
-
+				for (t = 0; t < 64; t++) begin
+					if (t < 16) begin
+						w[t] = //dpsram_tb[t];
+					end else begin
+						s0 = rightrotate(w[t-15], 7) ^ rightrotate(w[t-15], 18) ^ (w[t-15] >> 3);
+						s1 = rightrotate(w[t-2], 17) ^ rightrotate(w[t-2], 19) ^ (w[t-2] >> 10);
+						w[t] = w[t-16] + s0 + w[t-7] + s1;
+					end
+				end
 
 
 
