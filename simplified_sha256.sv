@@ -108,9 +108,7 @@ begin
   else case (state)
     // Initialize hash values h0 to h7 and a to h, other variables and memory we, address offset, etc
     IDLE: begin 
-       if(start) begin
-       // Student to add rest of the code  
-			
+       if(start) begin			
 			h0 <= 32'h6a09e667;
 			h1 <= 32'hbb67ae85;
 			h2 <= 32'h3c6ef372;
@@ -129,47 +127,37 @@ begin
 			g <= 0;
 			h <= 0;
 			
-			// initialize pointer to access memory location
-         offset <= 0;
-			
 			// by default set write enable to '0' (i.e. memory read mode)
-         cur_we <= 0;
-			mem_we <= 0;
+         cur_we <= 0;
 			
-			done <= 0;
+			// initialize pointer to access memory location
+         offset <= 0;
 			
-			// get starting address of message 
-      	cur_addr <= message_addr;
+			// get starting address of message 
+      	cur_addr <= message_addr;
+			
+			// initialize index
+			i <= 0;
+			j <= 0;
 			
 			// initialize write data to memory to '0'
-         cur_write_data <= 32'h0
+         cur_write_data <= 32'h0
 			
 			state <= READ;
-
        end
     end
 	 READ: begin
 			if(offset < 20) begin
 				// Read message word from testbench memory and store it in message array in chunks of 32 bits
-
-       		// mem_read_data will have 32 bits of message word which is coming from dpsram memory in testbench
-
-       		// using "offset" index variable, store 32-bit message word in each "message" array location.
-
-        		message[offset] <= mem_read_data;
-
-        		// Increment memory address to fetch next block 
-        		offset <= offset + 1;    
-
-        		cur_we <= 1'b0; // continue to set mem_we = 0 to read memory until all 20 words are read
-
-        		state <= READ;
-				
+       		// mem_read_data will have 32 bits of message word which is coming from dpsram memory in testbench
+       		// using "offset" index variable, store 32-bit message word in each "message" array location.
+        		message[offset] <= mem_read_data;
+        		offset <= offset + 1;    // Increment memory address to fetch next block 
+        		cur_we <= 1'b0; 			 // continue to set mem_we = 0 to read memory until all 20 words are read
+        		state <= READ;		
 			end
-			else begin
-				
-				state <= BLOCK;
-				
+			else begin				
+				state <= BLOCK;				
 			end
 	
 	 end
@@ -183,7 +171,42 @@ begin
        
 		if(j < 2) begin
 			//create message blocks
-			
+			if(j == 0) begin
+				w[0] <= message[0]; 
+				w[1] <= message[1];
+				w[2] <= message[2];
+				w[3] <= message[3];
+				w[4] <= message[4];
+				w[5] <= message[5];
+				w[6] <= message[6];
+				w[7] <= message[7];
+				w[8] <= message[8];
+				w[9] <= message[9];
+				w[10] <= message[10];
+				w[11] <= message[11];
+				w[12] <= message[12];
+				w[13] <= message[13];
+				w[14] <= message[14];
+				w[15] <= message[15];
+			end
+			else begin
+				w[0] <= message[16];
+				w[1] <= message[17];
+				w[2] <= message[18];
+				w[3] <= message[19];
+				w[4] <= 32'h80000000;
+				w[5] <= 32'h00000000;
+				w[6] <= 32'h00000000;
+				w[7] <= 32'h00000000;
+				w[8] <= 32'h00000000;
+				w[9] <= 32'h00000000;
+				w[10] <= 32'h00000000;
+				w[11] <= 32'h00000000;
+				w[12] <= 32'h00000000;
+				w[13] <= 32'h00000000;
+				w[14] <= 32'h00000000;
+				w[15] <= 32'd640
+			end
 			//copy h0-h7 to a-h
 			a <= h0;
 			b <= h1;
@@ -196,8 +219,7 @@ begin
 			
 			state <= COMPUTE;
 		end
-		else begin
-		
+		else begin	
 			state <= WRITE;
 		end
 
@@ -211,24 +233,19 @@ begin
 	 // 64 processing rounds steps for 512-bit block 
 			//message expansion
 			for (t = 0; t < 64; t++) begin
-					if (t < 16) begin
-					
-						w[t] = //dpsram_tb[t];
-						
-					end else begin
-					
+					if (t < 16) begin		
+						w[t] = //dpsram_tb[t];					
+					end 
+					else begin			
 						s0 = rightrotate(w[t-15], 7) ^ rightrotate(w[t-15], 18) ^ (w[t-15] >> 3);
 						s1 = rightrotate(w[t-2], 17) ^ rightrotate(w[t-2], 19) ^ (w[t-2] >> 10);
-						w[t] = w[t-16] + s0 + w[t-7] + s1;
-						
+						w[t] = w[t-16] + s0 + w[t-7] + s1;						
 					end
 			end
 			
 			//SHA256 operation 64 times
-			for (i = 0; i < 64; i++) begin
-				
-				{a, b, c, d, e, f, g, h} = sha256_op(a, b, c, d, e, f, g, h, w[t], t);
-			
+			for (i = 0; i < 64; i++) begin			
+				{a, b, c, d, e, f, g, h} = sha256_op(a, b, c, d, e, f, g, h, w[t], t);		
 			end
 			
 			//add a-h to hash values
@@ -253,9 +270,8 @@ begin
     // h0 to h7 after compute stage has final computed hash value
     // write back these h0 to h7 to memory starting from output_addr
     WRITE: begin
-   
-
-
+			output_addr <= {h0,h1,h2,h3,h4,h5,h6,h7}
+			state <= IDLE;
     end
    endcase
   end
