@@ -28,6 +28,9 @@ logic [31:0] cur_write_data;
 logic [512:0] memory_block;
 logic [ 7:0] tstep;
 
+logic[31:0] s0;
+logic[31:0] s1;
+
 // SHA256 K constants
 parameter int k[0:63] = '{
    32'h428a2f98,32'h71374491,32'hb5c0fbcf,32'he9b5dba5,32'h3956c25b,32'h59f111f1,32'h923f82a4,32'hab1c5ed5,
@@ -141,7 +144,7 @@ begin
 			j <= 0;
 			
 			// initialize write data to memory to '0'
-         cur_write_data <= 32'h0
+         cur_write_data <= 32'h0;
 			
 			state <= READ;
        end
@@ -167,8 +170,7 @@ begin
     // and write back hash value back to memory
     BLOCK: begin
 	// Fetch message in 512-bit block size
-	// For each of 512-bit block initiate hash value computation
-       
+	// For each of 512-bit block initiate hash value computation    
 		if(j < 2) begin
 			//create message blocks
 			if(j == 0) begin
@@ -205,7 +207,7 @@ begin
 				w[12] <= 32'h00000000;
 				w[13] <= 32'h00000000;
 				w[14] <= 32'h00000000;
-				w[15] <= 32'd640
+				w[15] <= 32'd640;
 			end
 			//copy h0-h7 to a-h
 			a <= h0;
@@ -232,37 +234,34 @@ begin
     COMPUTE: begin
 	 // 64 processing rounds steps for 512-bit block 
 			//message expansion
-			for (t = 0; t < 64; t++) begin
-					if (t < 16) begin		
-						w[t] = //dpsram_tb[t];					
-					end 
-					else begin			
-						s0 = rightrotate(w[t-15], 7) ^ rightrotate(w[t-15], 18) ^ (w[t-15] >> 3);
-						s1 = rightrotate(w[t-2], 17) ^ rightrotate(w[t-2], 19) ^ (w[t-2] >> 10);
-						w[t] = w[t-16] + s0 + w[t-7] + s1;						
-					end
+			if(i <= 64) begin
+				if(i >= 16) begin
+					 s0 <= rightrotate(w[i-15], 7) ^ rightrotate(w[i-15], 18) ^ (w[i-15] >> 3);
+					 s1 <= rightrotate(w[i-2], 17) ^ rightrotate(w[i-2], 19) ^ (w[i-2] >> 10);
+					 w[i] <= w[i-16] + s0 + w[i-7] + s1;
+				end
+				i <= i + 1;
+				state <= COMPUTE;
 			end
-			
-			//SHA256 operation 64 times
-			for (i = 0; i < 64; i++) begin			
-				{a, b, c, d, e, f, g, h} = sha256_op(a, b, c, d, e, f, g, h, w[t], t);		
+			else begin
+				for (int s = 0; s < 64; s++) begin			
+					{a, b, c, d, e, f, g, h} = sha256_op(a, b, c, d, e, f, g, h, w[s], s);		
+				end
+				
+				h0 <= h0 + a;
+				h1 <= h1 + b;
+				h2 <= h2 + c;
+				h3 <= h3 + d;
+				h4 <= h4 + e;
+				h5 <= h5 + f;
+				h6 <= h6 + g;
+				h7 <= h7 + h;	
+				
+				j <= j + 1;
+				state <= BLOCK;
 			end
-			
-			//add a-h to hash values
-			h0 <= h0 + a;
-			h1 <= h1 + b;
-			h2 <= h2 + c;
-			h3 <= h3 + d;
-			h4 <= h4 + e;
-			h5 <= h5 + f;
-			h6 <= h6 + g;
-			h7 <= h7 + h;
-			
-			//increment block counter
-			j <= j + 1;
 			
 			//goes back to block state after compression
-			state <= BLOCK;
 			
     end
 
@@ -270,7 +269,30 @@ begin
     // h0 to h7 after compute stage has final computed hash value
     // write back these h0 to h7 to memory starting from output_addr
     WRITE: begin
-			output_addr <= {h0,h1,h2,h3,h4,h5,h6,h7}
+			cur_addr <= output_addr;
+			cur_write_data <= h0;
+			
+			cur_addr <= output_addr + 1;
+			cur_write_data <= h1;
+			
+			cur_addr <= output_addr + 2;
+			cur_write_data <= h2;
+			
+			cur_addr <= output_addr + 3;
+			cur_write_data <= h3;
+			
+			cur_addr <= output_addr + 4;
+			cur_write_data <= h4;
+			
+			cur_addr <= output_addr + 5;
+			cur_write_data <= h5;
+			
+			cur_addr <= output_addr + 6;
+			cur_write_data <= h6;
+			
+			cur_addr <= output_addr + 7;
+			cur_write_data <= h7;
+			
 			state <= IDLE;
     end
    endcase
