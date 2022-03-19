@@ -147,6 +147,7 @@ begin
 			state <= BLOCK;
        end
     end
+	 
 	 READ: begin
 			if(offset < NUM_OF_WORDS) begin
         		complete_message[offset] <= mem_read_data;
@@ -167,50 +168,55 @@ begin
 	 end
 	 
     BLOCK: begin
-		if(j == 0) begin
-			state <= READ;
-		end
-		else if(j == 1) begin
-		  complete_message[NUM_OF_WORDS]<=32'h80000000;
-		  complete_message[NUM_OF_WORDS + 1]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 2]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 3]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 4]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 5]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 6]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 7]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 8]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 9]<=32'h00000000;
-		  complete_message[NUM_OF_WORDS + 10]<=32'h00000000;
-        complete_message[NUM_OF_WORDS + 11]<=32'd640;
-		  state <= COMPUTE;
-		end
-		else if(j == 2) begin
-			if(offset < 16) begin
-				w[offset] <= complete_message[offset + 16];
-				offset <= offset + 1;
-				state <= BLOCK;
+		case(j) 
+			0: begin
+				state <= READ;
 			end
-			else begin
-				i<=0; 
-				a <= h0;
-            b <= h1;
-            c <= h2;
-            d <= h3;
-            e <= h4;
-            f <= h5;
-            g <= h6;
-            h <= h7;
-            state<=COMPUTE;
+			1: begin
+			   complete_message[NUM_OF_WORDS]<=32'h80000000;
+				complete_message[NUM_OF_WORDS + 1]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 2]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 3]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 4]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 5]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 6]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 7]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 8]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 9]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 10]<=32'h00000000;
+				complete_message[NUM_OF_WORDS + 11]<=32'd640;
+				state <= COMPUTE;
 			end
-		end
-		else begin
-			 i <= 1;
-			 cur_we <= 1;
-			 cur_addr <= output_addr;
-			 cur_write_data <= h0;
-          state<=WRITE;
-		end
+			2: begin
+				if(offset < 16) begin
+					w[offset] <= complete_message[offset + 16];
+					offset <= offset + 1;
+					state <= BLOCK;
+				end
+				else begin
+					i<=0; 
+					a <= h0;
+					b <= h1;
+					c <= h2;
+					d <= h3;
+					e <= h4;
+					f <= h5;
+					g <= h6;
+					h <= h7;
+					state<=COMPUTE;
+				end
+			end
+			3: begin
+					i <= 1;
+					cur_we <= 1;
+					cur_addr <= output_addr;
+					cur_write_data <= h0;
+					state<=WRITE;
+			end
+			default: begin
+				state <= READ;
+			end
+		endcase
     end
 
     COMPUTE: begin
