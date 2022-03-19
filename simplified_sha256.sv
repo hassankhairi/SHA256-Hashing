@@ -121,14 +121,14 @@ begin
 			h6 <= 32'h1f83d9ab;
 			h7 <= 32'h5be0cd19;
 			
-			a <= 0;
-			b <= 0;
-			c <= 0;
-			d <= 0;
-			e <= 0;
-			f <= 0;
-			g <= 0;
-			h <= 0;
+			a <= 32'h6a09e667;
+			b <= 32'hbb67ae85;
+			c <= 32'h3c6ef372;
+			d <= 32'ha54ff53a;
+			e <= 32'h510e527f;
+			f <= 32'h9b05688c;
+			g <= 32'h1f83d9ab;
+			h <= 32'h5be0cd19;
 			
 			// by default set write enable to '0' (i.e. memory read mode)
          cur_we <= 0;
@@ -173,7 +173,25 @@ begin
 	// For each of 512-bit block initiate hash value computation    
 		if(j < 2) begin
 			//create message blocks
-			if(j == 0) begin
+			if(j == 1) begin
+				w[0] <= message[16];
+				w[1] <= message[17];
+				w[2] <= message[18];
+				w[3] <= message[19];
+				w[4] <= 32'h80000000;
+				w[5] <= 32'h00000000;
+				w[6] <= 32'h00000000;
+				w[7] <= 32'h00000000;
+				w[8] <= 32'h00000000;
+				w[9] <= 32'h00000000;
+				w[10] <= 32'h00000000;
+				w[11] <= 32'h00000000;
+				w[12] <= 32'h00000000;
+				w[13] <= 32'h00000000;
+				w[14] <= 32'h00000000;
+				w[15] <= 32'd640;		
+			end
+			else begin
 				w[0] <= message[0]; 
 				w[1] <= message[1];
 				w[2] <= message[2];
@@ -190,24 +208,6 @@ begin
 				w[13] <= message[13];
 				w[14] <= message[14];
 				w[15] <= message[15];
-			end
-			else begin
-				w[0] <= message[16];
-				w[1] <= message[17];
-				w[2] <= message[18];
-				w[3] <= message[19];
-				w[4] <= 32'h80000000;
-				w[5] <= 32'h00000000;
-				w[6] <= 32'h00000000;
-				w[7] <= 32'h00000000;
-				w[8] <= 32'h00000000;
-				w[9] <= 32'h00000000;
-				w[10] <= 32'h00000000;
-				w[11] <= 32'h00000000;
-				w[12] <= 32'h00000000;
-				w[13] <= 32'h00000000;
-				w[14] <= 32'h00000000;
-				w[15] <= 32'd640;
 			end
 			//copy h0-h7 to a-h
 			a <= h0;
