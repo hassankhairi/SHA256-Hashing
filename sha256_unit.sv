@@ -4,19 +4,15 @@ module sha256_unit(
 	input logic [31:0] input_message[16],
 	input logic [31:0] input_hash0, input_hash1, input_hash2, input_hash3, input_hash4, input_hash5, input_hash6, input_hash7,
 	output logic done,
-	output logic [31:0] output_mod
+	output logic [31:0] result_output
 );
 
 enum logic[1:0]{IDLE, BLOCK, COMPUTE, WRITE} state;
 
-logic [31:0] a, b, c, d, e, f, g, h;
-logic [31:0] w[16];
 logic [31:0] h0, h1, h2, h3, h4, h5, h6, h7;
+logic [31:0] a, b, c, d, e, f, g, h;
 logic [ 7:0] i, j;
-
-function logic [31:0] rightrotate(input logic [31:0] x,input logic [ 7:0] r);
-   rightrotate= (x >> r) | (x << (32-r));
-endfunction
+logic [31:0] w[16];
 
 function logic [255:0] sha256_op(input logic [31:0] a, b, c, d, e, f, g, h, w,
                                  input logic [7:0] t);
@@ -30,6 +26,10 @@ function logic [255:0] sha256_op(input logic [31:0] a, b, c, d, e, f, g, h, w,
 		t2  = S0 + maj;
 		sha256_op = {t1 + t2, a, b, c, d + t1, e, f, g};
 	end
+endfunction
+
+function logic [31:0] rightrotate(input logic [31:0] x,input logic [ 7:0] r);
+   rightrotate= (x >> r) | (x << (32-r));
 endfunction
 
 function logic [31:0] wtnew;
@@ -49,7 +49,6 @@ begin
 	else case (state)
 		IDLE: begin 
 			if(start)begin
-				w <= input_message;
 				
 				h0 <= 32'h6a09e667;
             h1 <= 32'hbb67ae85;
@@ -68,6 +67,8 @@ begin
             f <= input_hash5;
             g <= input_hash6;
             h <= input_hash7;
+				
+				w <= input_message;
    
             i <= 0;
             j <= 0;
@@ -81,7 +82,8 @@ begin
 				state <= COMPUTE;
 			end
 			1: begin
-				w[0] <= input_hash0 + a;
+					
+					w[0] <= input_hash0 + a;
 					w[1] <= input_hash1 + b;
 					w[2] <= input_hash2 + c;
 					w[3] <= input_hash3 + d;
@@ -89,13 +91,16 @@ begin
 					w[5] <= input_hash5 + f;
 					w[6] <= input_hash6 + g;
 					w[7] <= input_hash7 + h;
+					
 					w[8] <= 32'h80000000;
+					
 					w[9] <= 32'h00000000;
 					w[10] <= 32'h00000000;
 					w[11] <= 32'h00000000;
 					w[12] <= 32'h00000000;
 					w[13] <= 32'h00000000;
 					w[14] <= 32'h00000000;
+					
 					w[15] <= 32'd256;
 					
 					a <= h0;
@@ -116,23 +121,25 @@ begin
 			end
 		endcase
 	end
+	
    COMPUTE: begin
-      if (i < 64) 
-			begin
+      if (i < 64) begin
 				for (int n = 0; n < 15; n++) begin
 					w[n] <= w[n+1]; 
 					w[15] <= wtnew();
 				end
-         {a, b, c, d, e, f, g, h} <= sha256_op(a, b, c, d, e, f, g, h, w[0], i);
-         i <= i + 1;
-         state <= COMPUTE;
-		end else begin
+				{a, b, c, d, e, f, g, h} <= sha256_op(a, b, c, d, e, f, g, h, w[0], i);
+				i <= i + 1;
+				state <= COMPUTE;
+		end 
+		else begin
 			j <= j + 1;
 			state <= BLOCK;
 		end 
 	end 
+	
 	WRITE: begin
-		output_mod <= a + h0;
+		result_output <= h0 + a;
 		done <= 1;
 		state <= IDLE;
 	end

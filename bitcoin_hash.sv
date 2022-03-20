@@ -8,37 +8,26 @@ module bitcoin_hash (input logic        clk, reset_n, start,
 parameter num_nonces = 16;
 parameter NUM_OF_WORDS=20;
 
-//list of states
 enum logic [2:0] {IDLE, READ, BLOCK, COMPUTE, WRITE} state;
 
-//array to hold the input output values and w values for calculation
 logic [31:0] out[num_nonces];
-logic [31:0] message[19];
 logic [31:0] w[16];
 logic [31:0] w_array[num_nonces][num_nonces];
+logic [31:0] message[20];
 
-//h0-h7 values and a-h values for word expension and sha operation
 logic [31:0] h0, h1, h2, h3, h4, h5, h6, h7;
 logic [31:0] a, b, c, d, e, f, g, h;
 
-//mainly will be used as counters and indicators
 logic [ 7:0] i, j;
+logic [15:0] offset;
 
-//to work with address and indicating 
-logic [15:0] offset; // in word address
 logic cur_we;
 logic [15:0] cur_addr;
 logic [31:0] cur_write_data;
 
-//sha_start and sha_done will be used when inistantiate the SHA-256 modules
-logic sha_done[16];
 logic sha_start;
+logic sha_is_done[16];
 
-logic [ 7:0] num_blocks;
-
-/*
-  combination logic connecting the memory ports with local variables
-*/
 assign mem_clk = clk;
 assign mem_addr = cur_addr + offset;
 assign mem_we = cur_we;
@@ -57,23 +46,9 @@ parameter int k[64] = '{
     32'h748f82ee,32'h78a5636f,32'h84c87814,32'h8cc70208,32'h90befffa,32'ha4506ceb,32'hbef9a3f7,32'hc67178f2
 };
 
-assign num_blocks = determine_num_blocks(NUM_OF_WORDS); 
-
-/*
-  determine_num_blocks determines the number of 512 bits blocks it need to make based on the input. 
-  Since input is given as words(32 bits), each block will contain 16 words(16*32=512 bits)
-*/
-function logic [15:0] determine_num_blocks(input logic [31:0] size);
-  size=size+1;
-  determine_num_blocks = (size>>4) + 32'd1;
-endfunction
-
-/*
-  sha256_op does the main SHA operations based on the input parameters
-*/
 function logic [255:0] sha256_op(input logic [31:0] a, b, c, d, e, f, g, h, w1,
                                  input logic [7:0] t);
-    logic [31:0] S1, S0, ch, maj, t1, t2; // internal signals
+    logic [31:0] S1, S0, ch, maj, t1, t2;
 begin
     S1  = rightrotate(e, 6) ^ rightrotate(e, 11) ^ rightrotate(e, 25);
     ch  = (e & f) ^ ((~e) & g);
@@ -90,23 +65,16 @@ function logic [31:0] rightrotate(input logic [31:0] x,input logic [ 7:0] r);
    rightrotate= (x >> r) | (x << (32-r));
 endfunction
 
-/*
-  word expansion function for SHA operation optimized version
-*/
-function logic [31:0] wtnew; // function with no inputs
+function logic [31:0] wtnew;
   logic [31:0] s0, s1;
   s0 = rightrotate(w[1],7)^rightrotate(w[1],18)^(w[1]>>3);
   s1 = rightrotate(w[14],17)^rightrotate(w[14],19)^(w[14]>>10);
   wtnew = w[0] + s0 + w[9] + s1;
 endfunction
 
-/*
-Here we use generate and genvar to process the 16 arrays and the module itself will process
-the rest of phase 3 and phase 3. And after inistantiation, our job is simply to obtain the necessary outputs
-*/
 genvar n;
 generate
-    for(n = 0; n < num_nonces; n = n + 1) begin: sha_loop
+    for(n = 0; n < num_nonces; n++) begin: sha_create_insts
         sha256_unit sha_inst(
             .clk(clk),
             .start(sha_start),                      
@@ -121,18 +89,11 @@ generate
             .input_hash5(h5),
             .input_hash6(h6),
             .input_hash7(h7),
-				.done(sha_done[n]), 
-            .output_mod(out[n]));
-    end: sha_loop
+				.done(sha_is_done[n]), 
+            .result_output(out[n]));
+    end: sha_create_insts
 endgenerate
 
-
-/*
-    In this main design, we will first calculate the hash based on the first 16 words of the input message. 
-    While at the same time, with the left over 3 words,  we will also prepare 16 more w arrays with difference 
-    nonce values. Our goal is to utilize parallel computer with modules which will take care of phase 2 and 3 
-    calculation. 
-*/
 always_ff @(posedge clk, negedge reset_n) 
 begin 
     if (!reset_n) begin
@@ -161,6 +122,9 @@ begin
                 h <= 32'h5be0cd19; 
 					 
                 sha_start <= 0;
+					 
+					 cur_we <= 1'b0;
+					 
                 i <= 0;
                 j <= 0;
 					 
@@ -170,65 +134,62 @@ begin
                 state <= BLOCK;
             end
         end
-/*
-READ state will read in the the input and store in message
-The first 16 words will also be store in w array to reduce cycles 
-*/
+		  
         READ: begin
-            message[offset] <= mem_read_data;
-            w[offset] <= mem_read_data;
-            state <= BLOCK;
-            if(offset == NUM_OF_WORDS-2) begin
-                j <= 1;
-                offset <= 0;
-            end else begin
-                offset<=offset + 1;
-            end
+				if(offset < NUM_OF_WORDS) begin
+					message[offset] <= mem_read_data;
+					if(offset == NUM_OF_WORDS-1) begin
+						 offset <= 0;
+						 j <= j + 1;    
+					end 
+					else if(offset < 16) begin
+						w[offset] <= mem_read_data;
+						offset<=offset + 1;
+					end
+					else begin
+						 offset<=offset + 1;
+					end
+					cur_we <= 1'b0;
+					state <= BLOCK;
+				end
         end
 
-/*
-BLOCK state we will be preparing 16 more w array with difference nonce values 
-for phase 2 and 3 calculations
-*/
         BLOCK: begin
-            //allowing for reading 
 				case(j)
 					0: begin
 						state <= READ;
 					end
 					1: begin
 						for(int y = 0; y < num_nonces; y++) begin
-                   					 for(int x = 0; x < num_nonces; x++)begin
+                   	 for(int x = 0; x < num_nonces; x++)begin
 								if(y <= 2) begin
 									w_array[x][y] <= message[16 + y];
-								end else if(y == 3) begin
+								end 
+								else if(y == 3) begin
 									w_array[x][y] <= x;
-								end else if(y == 4) begin
+								end 
+								else if(y == 4) begin
 									w_array[x][y] <= 32'h80000000;
-								end else if(5 <= y && y <= 14) begin
+								end 
+								else if(5 <= y && y <= 14) begin
 									w_array[x][y] <= 32'h00000000;
-								end else begin
+								end 
+								else begin
 									w_array[x][y] <= 32'd640;
 								end
-                   					 end
-						end
-					 
+							 end
+						end		 
 						offset <= 0;
 						state <= COMPUTE;
 					end
 					default: begin
 						state <= READ;
 					end
-            end
+            endcase
         end
 
-/*
-COMPUTE state does SHA related operations for first block and the result will be part of parameter 
-for modules which will process phase 2 and 3
-*/
         COMPUTE: begin
-            if (i < 64) 
-            begin
+            if (i < 64) begin
               for (int n = 0; n < 15; n++) begin
                 w[n] <= w[n+1]; 
                 w[15] <= wtnew();
@@ -237,7 +198,9 @@ for modules which will process phase 2 and 3
               i<=i+1;
               state <= COMPUTE;
             end 
-				else if(sha_start == 0) begin
+				else if(!sha_start) begin
+				  sha_start <= 1;
+				
               h0 <= h0 + a;
               h1 <= h1 + b;
               h2 <= h2 + c;
@@ -246,10 +209,10 @@ for modules which will process phase 2 and 3
               h5 <= h5 + f;
               h6 <= h6 + g;
               h7 <= h7 + h; 
-				  sha_start <= 1;
+				  
               state <= COMPUTE;
 				end 
-				else if(sha_done[0] !== 1) begin
+				else if(sha_is_done[0] !== 1) begin
 					state <= COMPUTE;
 				end
 				else begin
@@ -260,21 +223,21 @@ for modules which will process phase 2 and 3
             end 
         end
 
-/*
-WRITE state iterated through the 16 values h0[0] to h0[15] and write to the memory
-*/
         WRITE: begin
-            if(offset == 16)begin
-					 state <= IDLE;
-            end else begin
-                cur_write_data <= out[offset+1];
-                offset <= offset+1;
-                state <= WRITE;
-            end
+				case(offset)
+					16: begin
+						state <= IDLE;
+					end
+					default: begin
+					   cur_write_data <= out[offset+1];
+                  state <= WRITE;
+					end
+				endcase
+				offset <= offset+1;
         end
 
     endcase
     end
 
-assign done= (state==IDLE);
+assign done = (state==IDLE);
 endmodule
