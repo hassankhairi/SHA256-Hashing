@@ -9,7 +9,7 @@ parameter num_nonces = 16;
 parameter NUM_OF_WORDS=20;
 
 //list of states
-enum logic [2:0] {IDLE, READ, BLOCK, COMPUTE, MORE_COMPUTE, WRITE} state;
+enum logic [2:0] {IDLE, READ, BLOCK, COMPUTE, WRITE} state;
 
 //array to hold the input output values and w values for calculation
 logic [31:0] out[num_nonces];
@@ -65,7 +65,7 @@ assign num_blocks = determine_num_blocks(NUM_OF_WORDS);
 */
 function logic [15:0] determine_num_blocks(input logic [31:0] size);
   size=size+1;
-  determine_num_blocks=(size>>4)+32'd1;
+  determine_num_blocks = (size>>4) + 32'd1;
 endfunction
 
 /*
@@ -110,7 +110,7 @@ endfunction
 always_ff @(posedge clk, negedge reset_n) 
 begin 
     if (!reset_n) begin
-        sha_start<=0;
+        sha_start <= 0;
         cur_we <= 1'b0;
         state <= IDLE;
     end else case (state) 
@@ -133,12 +133,12 @@ begin
                 g <= 32'h1f83d9ab;
                 h <= 32'h5be0cd19; 
 //sha_start will be controlling when the sha modules for phase 2 and 3 will begin calculating
-                sha_start<=0;
-                i<=0;
-                j<=0;
-                cur_addr<=message_addr;
-                offset<=0;
-                state<=BLOCK;
+                sha_start <= 0;
+                i <= 0;
+                j <= 0;
+                cur_addr <= message_addr;
+                offset <= 0;
+                state <= BLOCK;
             end
         end
 /*
@@ -146,14 +146,14 @@ READ state will read in the the input and store in message
 The first 16 words will also be store in w array to reduce cycles 
 */
         READ: begin
-            message[offset]<=mem_read_data;
-            w[offset]<=mem_read_data;
-            state<=BLOCK;
-            if(offset==NUM_OF_WORDS-2) begin
-                j<=1;
-                offset<=0;
+            message[offset] <= mem_read_data;
+            w[offset] <= mem_read_data;
+            state <= BLOCK;
+            if(offset == NUM_OF_WORDS-2) begin
+                j <= 1;
+                offset <= 0;
             end else begin
-                offset<=offset+1;
+                offset<=offset + 1;
             end
         end
 
@@ -163,47 +163,47 @@ for phase 2 and 3 calculations
 */
         BLOCK: begin
             //allowing for reading 
-            if(j==0) begin 
-                state<=READ;
+            if(j == 0) begin 
+                state <= READ;
             end else begin
                 //construction of arrays for phase 2 
-                for(int y=0; y<3; y++) begin
+                for(int y = 0; y < 3; y++) begin
                     for(int z=0; z<num_nonces; z++ )begin
-                        w_array[z][y]<=message[16+y];
+                        w_array[z][y] <= message[16+y];
                     end
                 end
 
-                w_array[0][3]<=32'd0;
-                w_array[1][3]<=32'd1;
-                w_array[2][3]<=32'd2;
-                w_array[3][3]<=32'd3;
-                w_array[4][3]<=32'd4;
-                w_array[5][3]<=32'd5;
-                w_array[6][3]<=32'd6;
-                w_array[7][3]<=32'd7;
-                w_array[8][3]<=32'd8;
-                w_array[9][3]<=32'd9;
-                w_array[10][3]<=32'd10;
-                w_array[11][3]<=32'd11;
-                w_array[12][3]<=32'd12;
-                w_array[13][3]<=32'd13;
-                w_array[14][3]<=32'd14;
-                w_array[15][3]<=32'd15;
+                w_array[0][3] <= 32'd0;
+                w_array[1][3] <= 32'd1;
+                w_array[2][3] <= 32'd2;
+                w_array[3][3] <= 32'd3;
+                w_array[4][3] <= 32'd4;
+                w_array[5][3] <= 32'd5;
+                w_array[6][3] <= 32'd6;
+                w_array[7][3] <= 32'd7;
+                w_array[8][3] <= 32'd8;
+                w_array[9][3] <= 32'd9;
+                w_array[10][3] <= 32'd10;
+                w_array[11][3] <= 32'd11;
+                w_array[12][3] <= 32'd12;
+                w_array[13][3] <= 32'd13;
+                w_array[14][3] <= 32'd14;
+                w_array[15][3] <= 32'd15;
 
-                for(int y=0; y<num_nonces; y++)begin
-                    w_array[y][4]<=32'h80000000;
+                for(int y = 0; y < num_nonces; y++)begin
+                    w_array[y][4] <= 32'h80000000;
                 end
 
-                for(int y=0; y<num_nonces; y++)begin
-                    for(int z=5; z<num_nonces-1; z++)begin
-                        w_array[y][z]<=32'h00000000;
+                for(int y = 0; y < num_nonces; y++)begin
+                    for(int z = 5; z < num_nonces-1; z++)begin
+                        w_array[y][z] <= 32'h00000000;
                     end
                 end 
-                for(int y=0; y<num_nonces; y++)begin
-                    w_array[y][15]<=32'd640;
+                for(int y = 0; y < num_nonces; y++)begin
+                    w_array[y][15] <= 32'd640;
                 end
-                offset<=0;
-                state<=COMPUTE;
+                offset <= 0;
+                state <= COMPUTE;
             end
         end
 
@@ -220,9 +220,9 @@ for modules which will process phase 2 and 3
               end
               {a, b, c, d, e, f, g, h} <= sha256_op(a, b, c, d, e, f, g, h, w[0], i);
               i<=i+1;
-              state<=COMPUTE;
-            end else 
-            begin
+              state <= COMPUTE;
+            end 
+				else if(sha_start == 0) begin
               h0 <= h0 + a;
               h1 <= h1 + b;
               h2 <= h2 + c;
@@ -231,36 +231,30 @@ for modules which will process phase 2 and 3
               h5 <= h5 + f;
               h6 <= h6 + g;
               h7 <= h7 + h; 
-              state<=MORE_COMPUTE;  
+				  sha_start <= 1;
+              state <= COMPUTE;
+				end 
+				else if(sha_done[0] !== 1) begin
+					state <= COMPUTE;
+				end
+				else begin
+					cur_we <= 1;
+					cur_addr <= output_addr;
+					cur_write_data <= out[0];
+					state <= WRITE;
             end 
-        end
-/*
-MORE_COMPUTE state, here we will start processing the modules and wait for the calculations to be finish
-and when it is finished, then we start preparing for writing and memory addresses
-*/
-        MORE_COMPUTE: begin
-            sha_start<=1; 
-            if(sha_done[0]!==1)begin 
-                state<=MORE_COMPUTE;
-            end else begin
-                cur_we<=1;
-                cur_addr<=output_addr;
-                cur_write_data<=out[0];
-                state<=WRITE;    
-            end
-
         end
 
 /*
 WRITE state iterated through the 16 values h0[0] to h0[15] and write to the memory
 */
         WRITE: begin
-            if(offset==16)begin
-					 state<=IDLE;
+            if(offset == 16)begin
+					 state <= IDLE;
             end else begin
-                cur_write_data<=out[offset+1];
-                offset<=offset+1;
-                state<=WRITE;
+                cur_write_data <= out[offset+1];
+                offset <= offset+1;
+                state <= WRITE;
             end
         end
 
