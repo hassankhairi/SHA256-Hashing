@@ -198,7 +198,7 @@ for phase 2 and 3 calculations
 					end
 					1: begin
 						for(int y = 0; y < num_nonces; y++) begin
-                    for(int x = 0; x < num_nonces; x++)begin
+                   					 for(int x = 0; x < num_nonces; x++)begin
 								if(y <= 2) begin
 									w_array[x][y] <= message[16 + y];
 								end else if(y == 3) begin
@@ -210,7 +210,7 @@ for phase 2 and 3 calculations
 								end else begin
 									w_array[x][y] <= 32'd640;
 								end
-                    end
+                   					 end
 						end
 					 
 						offset <= 0;
