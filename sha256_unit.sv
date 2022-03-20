@@ -32,8 +32,6 @@ function logic [255:0] sha256_op(input logic [31:0] a, b, c, d, e, f, g, h, w,
 	end
 endfunction
 
-//assign done=done_s;
-
 function logic [31:0] wtnew;
 	logic [31:0] s0, s1;
 	s0 = rightrotate(w[1],7)^rightrotate(w[1],18)^(w[1]>>3);
@@ -74,25 +72,16 @@ begin
             i <= 0;
             j <= 0;
 				
-            state <= COMPUTE;
+            state <= BLOCK;
 			end
       end
-    COMPUTE: begin
-      if (i < 64) 
-			begin
-				for (int n = 0; n < 15; n++) begin
-					w[n] <= w[n+1]; 
-					w[15] <= wtnew();
-				end
-         {a, b, c, d, e, f, g, h} <= sha256_op(a, b, c, d, e, f, g, h, w[0], i);
-         i <= i + 1;
-         state <= COMPUTE;
-		end else begin
-         if(j == 1) begin
-				state <= WRITE;
-         end else 
-            begin
-					w[0] <= input_hash0 + a;
+	BLOCK: begin	
+		case(j)
+			0: begin
+				state <= COMPUTE;
+			end
+			1: begin
+				w[0] <= input_hash0 + a;
 					w[1] <= input_hash1 + b;
 					w[2] <= input_hash2 + c;
 					w[3] <= input_hash3 + d;
@@ -119,17 +108,34 @@ begin
 					h <= h7;
 					
 					i <= 0;
-					j <= j + 1;
 					
 					state <= COMPUTE;
-            end
-          end 
-      end 
-		WRITE: begin
-			output_mod <= a + h0;
-			done <= 1;
-			state <= IDLE;
-		end
+			end
+			2: begin
+				state <= WRITE;
+			end
+		endcase
+	end
+   COMPUTE: begin
+      if (i < 64) 
+			begin
+				for (int n = 0; n < 15; n++) begin
+					w[n] <= w[n+1]; 
+					w[15] <= wtnew();
+				end
+         {a, b, c, d, e, f, g, h} <= sha256_op(a, b, c, d, e, f, g, h, w[0], i);
+         i <= i + 1;
+         state <= COMPUTE;
+		end else begin
+			j <= j + 1;
+			state <= BLOCK;
+		end 
+	end 
+	WRITE: begin
+		output_mod <= a + h0;
+		done <= 1;
+		state <= IDLE;
+	end
 	endcase
 end
 endmodule
