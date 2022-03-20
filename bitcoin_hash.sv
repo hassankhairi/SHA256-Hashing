@@ -109,7 +109,7 @@ generate
     for(n = 0; n < num_nonces; n = n + 1) begin: sha_loop
         sha256_unit sha_inst(
             .clk(clk),
-            .start(sha_start),                             
+            .start(sha_start),                      
             .input_message(w_array[n]),
 				.k(k),
             .reset_n(reset_n),
@@ -150,6 +150,7 @@ begin
                 h5 <= 32'h9b05688c;
                 h6 <= 32'h1f83d9ab;
                 h7 <= 32'h5be0cd19; 
+					 
                 a <= 32'h6a09e667;
                 b <= 32'hbb67ae85;
                 c <= 32'h3c6ef372;
@@ -158,12 +159,14 @@ begin
                 f <= 32'h9b05688c;
                 g <= 32'h1f83d9ab;
                 h <= 32'h5be0cd19; 
-//sha_start will be controlling when the sha modules for phase 2 and 3 will begin calculating
+					 
                 sha_start <= 0;
                 i <= 0;
                 j <= 0;
+					 
                 cur_addr <= message_addr;
                 offset <= 0;
+					 
                 state <= BLOCK;
             end
         end
@@ -189,34 +192,33 @@ for phase 2 and 3 calculations
 */
         BLOCK: begin
             //allowing for reading 
-            if(j == 0) begin 
-                state <= READ;
-            end else begin
-                //construction of arrays for phase 2 
-                for(int y = 0; y < 3; y++) begin
-                    for(int z=0; z<num_nonces; z++ )begin
-                        w_array[z][y] <= message[16+y];
+				case(j)
+					0: begin
+						state <= READ;
+					end
+					1: begin
+						for(int y = 0; y < num_nonces; y++) begin
+                    for(int x = 0; x < num_nonces; x++)begin
+								if(y <= 2) begin
+									w_array[x][y] <= message[16 + y];
+								end else if(y == 3) begin
+									w_array[x][y] <= x;
+								end else if(y == 4) begin
+									w_array[x][y] <= 32'h80000000;
+								end else if(5 <= y && y <= 14) begin
+									w_array[x][y] <= 32'h00000000;
+								end else begin
+									w_array[x][y] <= 32'd640;
+								end
                     end
-                end
+						end
 					 
-					 for(int y = 0; y < num_nonces; y++)begin
-                    w_array[y][3] <= y;
-                end
-
-                for(int y = 0; y < num_nonces; y++)begin
-                    w_array[y][4] <= 32'h80000000;
-                end
-
-                for(int y = 0; y < num_nonces; y++)begin
-                    for(int z = 5; z < num_nonces-1; z++)begin
-                        w_array[y][z] <= 32'h00000000;
-                    end
-                end 
-                for(int y = 0; y < num_nonces; y++)begin
-                    w_array[y][15] <= 32'd640;
-                end
-                offset <= 0;
-                state <= COMPUTE;
+						offset <= 0;
+						state <= COMPUTE;
+					end
+					default: begin
+						state <= READ;
+					end
             end
         end
 
