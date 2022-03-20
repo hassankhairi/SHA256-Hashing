@@ -100,6 +100,32 @@ function logic [31:0] wtnew; // function with no inputs
   wtnew = w[0] + s0 + w[9] + s1;
 endfunction
 
+/*
+Here we use generate and genvar to process the 16 arrays and the module itself will process
+the rest of phase 3 and phase 3. And after inistantiation, our job is simply to obtain the necessary outputs
+*/
+genvar n;
+generate
+    for(n = 0; n < num_nonces; n = n + 1) begin: sha_loop
+        sha256_unit sha_inst(
+            .clk(clk),
+            .start(sha_start),                             
+            .input_message(w_array[n]),
+				.k(k),
+            .reset_n(reset_n),
+            .input_hash0(h0),
+            .input_hash1(h1),
+            .input_hash2(h2),
+            .input_hash3(h3),
+            .input_hash4(h4),
+            .input_hash5(h5),
+            .input_hash6(h6),
+            .input_hash7(h7),
+				.done(sha_done[n]), 
+            .output_mod(out[n]));
+    end: sha_loop
+endgenerate
+
 
 /*
     In this main design, we will first calculate the hash based on the first 16 words of the input message. 
@@ -172,23 +198,10 @@ for phase 2 and 3 calculations
                         w_array[z][y] <= message[16+y];
                     end
                 end
-
-                w_array[0][3] <= 32'd0;
-                w_array[1][3] <= 32'd1;
-                w_array[2][3] <= 32'd2;
-                w_array[3][3] <= 32'd3;
-                w_array[4][3] <= 32'd4;
-                w_array[5][3] <= 32'd5;
-                w_array[6][3] <= 32'd6;
-                w_array[7][3] <= 32'd7;
-                w_array[8][3] <= 32'd8;
-                w_array[9][3] <= 32'd9;
-                w_array[10][3] <= 32'd10;
-                w_array[11][3] <= 32'd11;
-                w_array[12][3] <= 32'd12;
-                w_array[13][3] <= 32'd13;
-                w_array[14][3] <= 32'd14;
-                w_array[15][3] <= 32'd15;
+					 
+					 for(int y = 0; y < num_nonces; y++)begin
+                    w_array[y][3] <= y;
+                end
 
                 for(int y = 0; y < num_nonces; y++)begin
                     w_array[y][4] <= 32'h80000000;
@@ -260,32 +273,6 @@ WRITE state iterated through the 16 values h0[0] to h0[15] and write to the memo
 
     endcase
     end
-
-/*
-Here we use generate and genvar to process the 16 arrays and the module itself will process
-the rest of phase 3 and phase 3. And after inistantiation, our job is simply to obtain the necessary outputs
-*/
-genvar m;
-generate
-    for(m=0; m<num_nonces; m=m+1) begin: sha_loop
-        sha256_unit sha_inst(
-            .clk(clk),
-            .start(sha_start),                
-            .done(sha_done[m]),              
-            .input_message(w_array[m]),
-				.k(k),
-            .reset_n(reset_n),
-            .input_hash0(h0),
-            .input_hash1(h1),
-            .input_hash2(h2),
-            .input_hash3(h3),
-            .input_hash4(h4),
-            .input_hash5(h5),
-            .input_hash6(h6),
-            .input_hash7(h7),
-            .output_mod(out[m]));
-    end: sha_loop
-endgenerate
 
 assign done= (state==IDLE);
 endmodule
